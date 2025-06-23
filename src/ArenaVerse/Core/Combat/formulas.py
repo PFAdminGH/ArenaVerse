@@ -1,5 +1,4 @@
-    """
-PlayFantasia • formulas.py
+"""
 Pure maths – no game objects.
 """
 

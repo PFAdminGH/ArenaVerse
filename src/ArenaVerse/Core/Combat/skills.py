@@ -1,4 +1,4 @@
-"""playfantasia.core.combat.skills
+"""
 =================================
 *SkillHandle* objects are how the encounter tells a combatant to perform a
 single action.  Each instance owns its **cooldown counter**, is able to say

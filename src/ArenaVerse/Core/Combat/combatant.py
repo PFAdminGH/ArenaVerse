@@ -1,4 +1,4 @@
-\"\"\"playfantasia.core.combat.combatant
+"""
 =====================================
 
 The **Combatant** class is the heart of a single entity inside the battle
@@ -23,7 +23,7 @@ TL;DR of public interface
 •  `.apply_effect(StatusEffect)` – resolves stacking rules and stores it.
 •  `.tick_effects()` – call once per turn; triggers DOT, decrements timers.
 •  Properties: `.hp`, `.is_alive`, `.max_hp`, `.name`.
-\"\"\"
+"""
 
 from __future__ import annotations
 
