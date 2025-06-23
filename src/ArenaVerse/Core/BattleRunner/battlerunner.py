@@ -1,142 +1,164 @@
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                    PlayFantasia • Battle Runner (v0.002)                  ║
-# ╠═══════════════════════════════════════════════════════════════════════════╣
-# ║  PURPOSE                                                                 ║
-# ║    • Display each combatant’s full stats & gear before fighting.         ║
-# ║    • Run EITHER a single verbose duel OR many duels for win-rate stats.  ║
-# ║    • Aggregation logic lives here; combat math stays in the engine.      ║
-# ║                                                                           ║
-# ║  QUICK HOW-TO                                                             ║
-# ║    1) Make sure you have already executed:                                ║
-# ║         • Combat Engine cell (defines Item, Combatant, CombatEncounter)   ║
-# ║         • Sample Data cell (creates COMBATANT_A and COMBATANT_B)          ║
-# ║    2) Adjust the PARAMETERS section below and run this cell.              ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+    #!/usr/bin/env python3
+    '''
+    ArenaVerse • Battle Runner (v0.3, post-formula-refactor)
+    =======================================================
 
-from copy import deepcopy
-from statistics import mean
-import random
+    Purpose
+    -------
+    * Run **one** fully-detailed duel (turn-by-turn log) *or*
+      **many** head-less duels to measure win-rates / fight length.
+    * Keep every bit of maths inside the engine – this script is orchestration +
+      pretty-printing only.
+    * **Items are deliberately absent** for now; they’ll be wired back in later.
 
-from playfantasia.combat_engine import Combatant, CombatEncounter
-from playfantasia.sample_data import COMBATANT_A, COMBATANT_B
+    Quick examples
+    --------------
+      # One verbose fight, random seed
+      $ python battle_runner.py
 
+      # 1 000 Monte-Carlo duels with a fixed seed
+      $ python battle_runner.py --mode monte -n 1000 --seed 123
+    '''
+    from __future__ import annotations
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PARAMETERS – tweak these and re-run
-# ─────────────────────────────────────────────────────────────────────────────
-SINGLE_BATTLE = True   # ► True  = one detailed fight
-                        # ► False = many fights for stats (set NUM_TRIALS)
+    # ── std-lib ────────────────────────────────────────────────────────────
+    import argparse
+    import random
+    from copy import deepcopy
+    from statistics import mean
+    from typing import List, Tuple
 
-NUM_TRIALS    = 100      # Used only if SINGLE_BATTLE is False
+    # ── engine imports ─────────────────────────────────────────────────────
+    from ArenaVerse.Core.Combat.combatant import Combatant
+    from ArenaVerse.Core.Combat.encounter import CombatEncounter, BattleLog
+    # (formulas isn’t used directly here but is handy for future tweaks)
+    from ArenaVerse.Core.Combat import formulas   # noqa: F401
 
-USE_SEED    = False    # Set False for “truly” random sessions
-SEED_BASE   = 42      # Moved down one line; value unchanged
+    # ───────────────────────────────────────────────────────────────────────
+    # Temporary roster helper – no YAML/DB loader yet
+    # ───────────────────────────────────────────────────────────────────────
+    def make_default_fighters() -> Tuple[Combatant, Combatant]:
+        """Return two fresh Combatants for test battles."""
+        hero = Combatant(
+            name="Knight",
+            base_stats={
+                "STR": 12, "CON": 14, "ACC": 8, "EVA": 6, "CRT": 4,
+                "weapon_damage": 4, "armor": 3,
+            },
+        )
+        orc = Combatant(
+            name="Orc Berserker",
+            base_stats={
+                "STR": 14, "CON": 12, "ACC": 7, "EVA": 5, "CRT": 3,
+                "weapon_damage": 5, "armor": 1,
+            },
+        )
+        return hero, orc
 
-# Choose which combatants to pit against each other.
-# By default we use the aliases from your Sample Data cell.
-COMBATANT_ONE = COMBATANT_A   # e.g. warrior
-COMBATANT_TWO = COMBATANT_B   # e.g. wizard
-# Feel free to import / create others and plug them in here.
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HELPER FUNCTIONS
-# ─────────────────────────────────────────────────────────────────────────────
-def snapshot(combatant):
-    """
-    Return a formatted multiline string with:
-      • core + extra stats
-      • equipment list
-      • NEW: up to three equipped skills (shows cooldown for quick reference)
-    """
-    stats = combatant.total_stats
-
-    # 1) Pretty-print stats --------------------------------------------------
-    core_stats = ", ".join(f"{k}:{stats[k]}"
-                           for k in ("STR", "CON", "DEX", "INT", "WIS", "AGI"))
-    extras = {k: v for k, v in stats.items()
-              if k not in {"STR","CON","DEX","INT","WIS","AGI",
-                           "weapon_damage","armor","resist"}}
-    extras_str = ", ".join(f"{k}:{v}" for k, v in extras.items()) or "None"
-
-    # 2) Gear read-out -------------------------------------------------------
-    gear = ", ".join(sorted({itm.name for itm in combatant._equipment.values()})) \
-           or "None"
-
-    # 3) **NEW** — list equipped skills -------------------------------------
-    # If the fighter has no skills, show “None” so the column never vanishes.
-    skills = ", ".join(f"{sk.name}(CD:{sk.cooldown_max})"
-                       for sk in combatant._skills) or "None"
-
-    # 4) Assemble the block --------------------------------------------------
-    return (
-        f"{combatant.name}\n"
-        f"  Core Stats - {core_stats}\n"
-        f"  Weapon DMG:{stats['weapon_damage']}  "
-        f"Armor:{stats['armor']}  Resist:{stats['resist']}\n"
-        f"  Extras     - {extras_str}\n"
-        f"  Gear       - {gear}\n"
-        f"  Skills     - {skills}\n"      # ← NEW line
+    # ───────────────────────────────────────────────────────────────────────
+    # Pretty-printing helpers
+    # ───────────────────────────────────────────────────────────────────────
+    CORE_KEYS = (
+        "STR", "CON", "ACC", "EVA", "CRT",
+        "HP", "weapon_damage", "armor",
     )
 
+    def snapshot(unit: Combatant) -> str:
+        """Neat multi-line dump of a combatant’s build (no gear yet)."""
+        stats = unit.total_stats()
+        stats.setdefault("HP", unit.max_hp)          # ensure HP is shown
+        core  = ", ".join(f"{k}:{stats.get(k, 0)}" for k in CORE_KEYS if k in stats)
+        skills = ", ".join(s.name for s in getattr(unit, "hotbar", [])[:3]) or "BasicAttack"
+        return f"{unit.name}\n  Stats : {core}\n  Skills: {skills}\n"
 
-def fresh_copies():
-    """Deep-copy the combatants so each trial starts with full HP and no RNG bias."""
-    return deepcopy(COMBATANT_ONE), deepcopy(COMBATANT_TWO)
+    # ───────────────────────────────────────────────────────────────────────
+    # Single detailed encounter
+    # ───────────────────────────────────────────────────────────────────────
+    def run_single(seed: int | None = None, quiet: bool = False) -> None:
+        a0, b0 = make_default_fighters()
+        seed = seed if seed is not None else random.SystemRandom().randrange(2**32)
+        print(f"[INFO] Seed for this encounter: {seed}\n")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SINGLE DETAILED BATTLE
-# ─────────────────────────────────────────────────────────────────────────────
-if SINGLE_BATTLE:
-    # Show combatant sheets first
-    print("=== Combatant Load-out ===")
-    print(snapshot(COMBATANT_ONE))
-    print(snapshot(COMBATANT_TWO))
+        p1, p2 = deepcopy(a0), deepcopy(b0)
+        battle  = CombatEncounter([p1, p2], rng_seed=seed)
+        log: BattleLog = battle.run_battle()
 
-    # Decide the seed: deterministic if USE_SEED, otherwise fresh entropy
-    seed = SEED_BASE if USE_SEED else random.SystemRandom().randrange(2**32)
-    print(f"\n[INFO] Seed for this encounter: {seed}")
+        # ── report ─────────────────────────────────────────────────────────
+        print("=== Combatant Load-out ===")
+        print(snapshot(p1))
+        print(snapshot(p2))
 
-    # Run the duel
-    p1, p2 = fresh_copies()
-    encounter = CombatEncounter(p1, p2, seed=seed)
-    winner = encounter.run_full_battle()
+        if not quiet:
+            print("=== Battle Log ===")
+            print(str(log))
 
-    # Show full turn-by-turn log + winner
-    print("\n" + encounter.summary())
-
-# ─────────────────────────────────────────────────────────────────────────────
-# AGGREGATED MONTE-CARLO BATTLES
-# ─────────────────────────────────────────────────────────────────────────────
-else:
-    wins_one, wins_two, draws = 0, 0, 0
-    rounds: list[int] = []
-
-    for n in range(NUM_TRIALS):
-        # One distinct seed per encounter → repeatable yet independent streams.
-        seed = (SEED_BASE + n) if USE_SEED else None
-
-        p1, p2 = fresh_copies()
-        encounter = CombatEncounter(p1, p2, seed=seed)
-        victor    = encounter.run_full_battle()
-
-        rounds.append(encounter.round)
-        if victor is p1:
-            wins_one += 1
-        elif victor is p2:
-            wins_two += 1
+        winner = next((c for c in battle.combatants if c.is_alive), None)
+        print("\n=== Result ===")
+        if winner:
+            print(f"Winner: {winner.name} in {len(log.rounds)} rounds")
         else:
-            draws += 1
+            print(f"Draw after {len(log.rounds)} rounds")
 
-    # ── Aggregate report ──────────────────────────────────────────────────
-    print("=== Aggregated Results ===")
-    print(snapshot(COMBATANT_ONE))
-    print(snapshot(COMBATANT_TWO))
+    # ───────────────────────────────────────────────────────────────────────
+    # Monte-Carlo aggregate
+    # ───────────────────────────────────────────────────────────────────────
+    def run_monte(num_trials: int, seed: int | None = None) -> None:
+        a0, b0 = make_default_fighters()
+        wins_a = wins_b = draws = 0
+        rounds: List[int] = []
 
-    print(
-        f"""Trials run            : {NUM_TRIALS}
-{COMBATANT_ONE.name} wins   : {wins_one}  ({wins_one/NUM_TRIALS*100:.1f}%)
-{COMBATANT_TWO.name} wins   : {wins_two}  ({wins_two/NUM_TRIALS*100:.1f}%)
-Draws                 : {draws}
-Average rounds/fight  : {mean(rounds):.2f}
-Shortest / Longest    : {min(rounds)} / {max(rounds)} rounds"""
-    )
+        base_seed = seed if seed is not None else random.SystemRandom().randrange(2**32)
+        for n in range(num_trials):
+            trial_seed = base_seed + n
+            p1, p2 = deepcopy(a0), deepcopy(b0)
+            battle   = CombatEncounter([p1, p2], rng_seed=trial_seed)
+            log      = battle.run_battle()
+            rounds.append(len(log.rounds))
+
+            winner = next((c for c in battle.combatants if c.is_alive), None)
+            if   winner is p1: wins_a += 1
+            elif winner is p2: wins_b += 1
+            else:              draws  += 1
+
+        # ── summary ────────────────────────────────────────────────────────
+        print("=== Monte-Carlo Summary ===")
+        print(snapshot(a0))
+        print(snapshot(b0))
+        print(f"Trials run          : {num_trials}")
+        print(f"{a0.name} wins       : {wins_a}  ({wins_a/num_trials*100:.1f}%)")
+        print(f"{b0.name} wins   : {wins_b}  ({wins_b/num_trials*100:.1f}%)")
+        print(f"Draws               : {draws}")
+        print(f"Avg. rounds/fight   : {mean(rounds):.2f}")
+        print(f"Shortest fight      : {min(rounds)} rounds")
+        print(f"Longest fight       : {max(rounds)} rounds")
+
+    # ───────────────────────────────────────────────────────────────────────
+    # CLI glue
+    # ───────────────────────────────────────────────────────────────────────
+    def parse_args() -> argparse.Namespace:
+        ap = argparse.ArgumentParser(
+            prog="battle_runner",
+            description="Run ArenaVerse combat in detailed or aggregate mode."
+        )
+        ap.add_argument(
+            "--mode", choices=("single", "monte"), default="single",
+            help="'single' = one verbose fight; 'monte' = many fights for stats."
+        )
+        ap.add_argument(
+            "-n", "--num", type=int, default=100,
+            help="Number of Monte-Carlo trials (mode 'monte' only)."
+        )
+        ap.add_argument("--seed",  type=int,  help="Optional RNG seed for reproducibility.")
+        ap.add_argument("--quiet", action="store_true",
+                        help="Suppress turn-by-turn log in single mode.")
+        return ap.parse_args()
+
+    def main() -> None:
+        args = parse_args()
+        if args.mode == "single":
+            run_single(seed=args.seed, quiet=args.quiet)
+        else:
+            run_monte(num_trials=args.num, seed=args.seed)
+
+    if __name__ == "__main__":
+        main()
