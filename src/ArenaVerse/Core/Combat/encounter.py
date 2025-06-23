@@ -22,8 +22,8 @@ from typing import List, Dict, Any, Optional
 # -------------------------------------------------------------------- #
 # Internal imports
 # -------------------------------------------------------------------- #
-from arenaverse.core.combat.combatant import Combatant
-from arenaverse.core.combat.skills import select_first_ready, SkillHandle, ActionResult
+from ..combat.combatant import Combatant
+from ..combat.skills import select_first_ready, SkillHandle, ActionResult
 # Encounter deliberately does NOT import effects or formulas directly.
 
 
@@ -146,7 +146,7 @@ class CombatEncounter:
         hb = getattr(actor, "hotbar", None)
         if hb is None:
             # Lazy create: BasicAttack only
-            from arenaverse.core.combat.skills import BasicAttack, PowerStrike
+            from ..combat.skills import BasicAttack, PowerStrike
             actor.hotbar = [PowerStrike(), BasicAttack()]
         return actor.hotbar
 

@@ -24,7 +24,7 @@ from enum import Enum, auto
 from typing import Dict, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from playfantasia.core.combat.combatant import Combatant
+    from ..combat.combatant import Combatant
 
 # --------------------------------------------------------------------- #
 # StackRule – how re‑application behaves

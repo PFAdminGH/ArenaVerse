@@ -21,13 +21,13 @@ from typing import Any, Dict, TYPE_CHECKING, List
 # ──────────────────────────────────────────────────────────────────────
 # Internal imports (only low‑level helpers; avoid circular deps)
 # ──────────────────────────────────────────────────────────────────────
-from playfantasia.core.combat import formulas
-from playfantasia.core.util.random import rng_bool
-from playfantasia.core.combat.combatant import Combatant
+from ..combat import formulas
+from ..util.random import rng_bool
+from ..combat import Combatant
 
 if TYPE_CHECKING:
-    from playfantasia.core.combat.encounter import CombatEncounter
-    from playfantasia.core.combat.effects import StatusEffect
+    from ..combat.encounter import CombatEncounter
+    from ..combat.effects import StatusEffect
 
 # -------------------------------------------------------------------- #
 # ActionResult – tiny DTO returned by every skill execution
@@ -96,6 +96,7 @@ class SkillHandle:
 # -------------------------------------------------------------------- #
 class BasicAttack(SkillHandle):
     """
+    *Flagged for an update* - should default to base weapon type, or physical based attack if no weapon is        equipped.
     Fallback physical hit that every unit can perform.  No cooldown.
     Damage = STR.  Uses hit and crit rolls from formulas.py.
     """
@@ -164,7 +165,7 @@ class PowerStrike(SkillHandle):
 
         # Attempt to apply Rage if the effect class exists
         try:
-            from playfantasia.core.combat.effects import Rage
+            from ..combat.effects import Rage
             actor.apply_effect(Rage(source=actor))
         except (ImportError, AttributeError):
             pass  # Rage not implemented yet – safe in early scaffolding

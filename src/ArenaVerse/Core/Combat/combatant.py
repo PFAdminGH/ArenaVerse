@@ -38,13 +38,13 @@ from typing import Dict, List, TYPE_CHECKING, Any, Optional
 # tree get imported here (formulas, util.random).  We do NOT import
 # 'skills' or 'encounter' to avoid circular deps.
 # ----------------------------------------------------------------------- #
-from playfantasia.core.combat import formulas
-from playfantasia.core.util.random import rng_bool  # used for flee rolls etc.
+from ..combat import formulas
+from ..util.random import rng_bool  # used for flee rolls etc.
 
 # Forward‑refs to avoid circular import at type‑check time.
 if TYPE_CHECKING:
-    from playfantasia.core.combat.effects import StatusEffect
-    from playfantasia.core.items.item import Item
+    from ..combat.effects import StatusEffect
+    from ..core.items.item import Item
 
 
 # ----------------------------------------------------------------------- #
@@ -81,7 +81,7 @@ def _sum_item_stats(items: List["Item"]) -> Dict[str, int]:
 # ----------------------------------------------------------------------- #
 @dataclass(slots=True)
 class Combatant:
-    \"\"\"A creature or character that can act in combat.\"\"\"
+    '''A creature or character that can act in combat.'''
 
     # ─────────────────────────────────────────────────────────────────── #
     # Basic identity
@@ -131,7 +131,7 @@ class Combatant:
     # ------------------------------------------------------------------ #
     @property
     def max_hp(self) -> int:
-        \"\"\"Dynamic because buffs or gear can raise HP mid‑fight.\"\"\"
+        '''Dynamic because buffs or gear can raise HP mid‑fight.'''
         return self.total_stats().get("HP", 1)
 
     @property
@@ -142,13 +142,14 @@ class Combatant:
     # Core public methods
     # ------------------------------------------------------------------ #
     def total_stats(self) -> Dict[str, int]:
-        \"\"\"Return a fresh **dict** combining base + gear + effect mods.
+        '''
+        Return a fresh **dict** combining base + gear + effect mods.
 
         1. Start with *base_stats*.
         2. Add any `stat_bonus` from equipped items.
         3. Add each effect's **flat_mods**.
         4. Apply each effect's **mult_mods** (multiplicative).
-        \"\"\"
+        '''
         totals: Dict[str, float] = dict(self.base_stats)
 
         # 1+2: equipment
@@ -187,7 +188,7 @@ class Combatant:
 
     # ------------------------------------------------------------------ #
     def heal(self, amount: int) -> int:
-        \"\"\"Restore HP, never exceeding max_hp. Returns real amount healed.\"\"\"
+        """Restore HP, never exceeding max_hp. Returns real amount healed."""
         if amount <= 0 or not self.is_alive:
             return 0
         before = self.hp
@@ -198,12 +199,12 @@ class Combatant:
     # Status‑effect plumbing
     # ------------------------------------------------------------------ #
     def apply_effect(self, effect: "StatusEffect"):
-        \"\"\"Handle stacking rules then add the *effect* instance.
+        """Handle stacking rules then add the *effect* instance.
 
         For now we simply append; the real stacking/refresh logic will be
         coded in `effects.py`.  This keeps Combatant tiny and dumb.
-        \"\"\"
-        from playfantasia.core.combat.effects import StackRule  # local import
+        """
+        from ..combat.effects import StackRule  # local import
 
         # Quick path: no effect with same tag yet → just add
         same = next((e for e in self.active_effects if e.tag == effect.tag), None)
@@ -226,7 +227,7 @@ class Combatant:
 
     # ------------------------------------------------------------------ #
     def tick_effects(self):
-        \"\"\"Call at *start of this combatant’s turn*.\"\"\"
+        """Call at *start of this combatant’s turn*."""
         for eff in list(self.active_effects):  # copy → we might remove
             eff.on_tick(self)
             eff.duration -= 1
