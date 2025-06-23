@@ -98,7 +98,7 @@ class BasicAttack(SkillHandle):
     """
     *Flagged for an update* - should default to base weapon type, or physical based attack if no weapon is        equipped.
     Fallback physical hit that every unit can perform.  No cooldown.
-    Damage = STR.  Uses hit and crit rolls from formulas.py.
+    Damage/crit now routed through formulas.py
     """
     def __init__(self):
         super().__init__(name="Basic Attack", cooldown_max=0)
@@ -113,11 +113,9 @@ class BasicAttack(SkillHandle):
         res = ActionResult(actor=actor.name, target=target.name, skill_used=self.name)
 
         # 1. Did we hit?
-        if not formulas.hit_roll(
-            actor.total_stats().get("ACC", 0),
-            target.total_stats().get("EVA", 0),
-            rnd,
-        ):
+        hit_chance = formulas.chance_to_hit(
+            actor.total_stats(), target.total_stats())
+        if rnd.random() > hit_chance:
             res.hit = False
             self.reset_cd()  # basic attack still "spends" the action
             return res
@@ -126,15 +124,16 @@ class BasicAttack(SkillHandle):
 
         # 2. Base damage starts at STR
         dmg = actor.total_stats().get("STR", 1)
-
-        # 3. Crit check
-        if formulas.crit_roll(actor.total_stats().get("CRT", 0), rnd):
+        # 2 + 3.  Damage pipeline now centralised in formulas.py
+        dmg = formulas.raw_damage(actor.total_stats(), "physical")
+        if rnd.random() < formulas.chance_to_crit(
+            actor.total_stats(), target.total_stats()):
             res.crit = True
-            dmg = int(dmg * formulas.crit_multiplier(actor.total_stats().get("STR", 0)))
-
-        # 4. Target mitigates & loses HP
-        res.damage = target.take_damage(dmg, "phys")
-
+        dmg *= 1.5       # simple 150 % crit multiplier
+        
+        # 4. Mitigation & HP loss
+        res.damage = target.take_damage(int(dmg), "physical")
+        
         self.reset_cd()
         return res
 
@@ -156,13 +155,14 @@ class PowerStrike(SkillHandle):
         res = ActionResult(actor=actor.name, target=target.name, skill_used=self.name)
         res.hit = True  # guaranteed hit for demo purposes
 
-        dmg = actor.total_stats().get("STR", 1) * 2
-        if formulas.crit_roll(actor.total_stats().get("CRT", 0), rnd):
+        dmg = formulas.raw_damage(actor.total_stats(), "physical") * 2
+        if rnd.random() < formulas.chance_to_crit(
+            actor.total_stats(), target.total_stats()):
             res.crit = True
-            dmg = int(dmg * formulas.crit_multiplier(actor.total_stats().get("STR", 0)))
+        dmg *= 1.5
+        res.damage = target.take_damage(int(dmg), "physical")
 
-        res.damage = target.take_damage(dmg, "phys")
-
+        
         # Attempt to apply Rage if the effect class exists
         try:
             from ..combat.effects import Rage

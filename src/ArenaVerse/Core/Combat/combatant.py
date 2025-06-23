@@ -132,7 +132,9 @@ class Combatant:
     @property
     def max_hp(self) -> int:
         '''Dynamic because buffs or gear can raise HP mid‑fight.'''
-        return self.total_stats().get("HP", 1)
+        '''HP is now a secondary stat derived from CON.'''
+        # `sec_hp()` lives in formulas.py and already enforces the 10 × CON rule.
+        return max(1, formulas.sec_hp(self.total_stats().get("CON", 0)))
 
     @property
     def is_alive(self) -> bool:
