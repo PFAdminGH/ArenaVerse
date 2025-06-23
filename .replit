@@ -1,4 +1,15 @@
 modules = ["python-3.12"]
+run = "python -m arenaverse.core.battlerunner.battlerunner --mode single"
 
 [nix]
 channel = "stable-24_05"
+
+run = "python -m ArenaVerse.Core.BattleRunner.battlerunner --mode single"
+
+[deployment]
+run = ["sh", "-c", "python -m arenaverse.core.battlerunner.battlerunner --mode single"]
+
+#run = "python -m ArenaVerse.Core.BattleRunner.battlerunner --mode monte -n 200"
+
+
+
