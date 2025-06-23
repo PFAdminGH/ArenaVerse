@@ -18,7 +18,7 @@ from typing import Any
 # ---------------------------------------------------------------------------#
 # Public helpers
 # ---------------------------------------------------------------------------#
-def rng_bool(rnd: \"random.Random\", p: float) -> bool:
+def rng_bool(rnd: "random.Random", p: float) -> bool:
     '''Return *True* with probability **p** (0 ≤ p ≤ 1).'''
     if p <= 0.0:
         return False
@@ -27,7 +27,7 @@ def rng_bool(rnd: \"random.Random\", p: float) -> bool:
     return rnd.random() < p
 
 
-def rng_float(rnd: \"random.Random\", a: float, b: float) -> float:
+def rng_float(rnd: "random.Random", a: float, b: float) -> float:
     '''Uniform float in the closed range [a, b].'''
     return rnd.uniform(a, b)
 

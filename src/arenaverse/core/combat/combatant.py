@@ -241,4 +241,4 @@ class Combatant:
     # Debug helper – pretty string
     # ------------------------------------------------------------------ #
     def __str__(self):
-        return f\"{self.name} (HP {self.hp}/{self.max_hp})\"
+        return f"{self.name} (HP {self.hp}/{self.max_hp})"

@@ -23,7 +23,7 @@ from typing import Any, Dict, TYPE_CHECKING, List
 # ──────────────────────────────────────────────────────────────────────
 from ..combat import formulas
 from ..util.random import rng_bool
-from ..combat import Combatant
+from ..combat.combatant import Combatant
 
 if TYPE_CHECKING:
     from ..combat.encounter import CombatEncounter
