@@ -1,0 +1,80 @@
+# === Sample Data: Items & Archetypes (v0.002) ===============================
+# Prerequisite: the Combat Engine cell defining Item & Combatant is already run.
+
+from playfantasia.combat_engine import Skill, Item, Combatant, ActionResult
+
+
+# --------------------------------------------------------------------------- #
+#  SKILLS
+# --------------------------------------------------------------------------- #
+
+class PowerStrike(Skill):
+    name = "Power Strike"
+    cooldown_max = 2
+    priority = 0
+
+    def execute(self, actor, target, encounter, current_round) -> ActionResult: # Added current_round
+        # reuse existing combat math for now
+        # basic_attack returns a dict, convert it to ActionResult
+        # Pass the current round to basic_attack
+        res_dict = actor.basic_attack(target, current_round)
+        # Pass all dictionary items as keyword arguments to ActionResult
+        # ActionResult now accepts 'reason' and 'round'
+        res = ActionResult(**res_dict)
+        # Update the skill_used field on the ActionResult object
+        res.skill_used = self.name
+        return res
+
+# --------------------------------------------------------------------------- #
+#  Items
+# --------------------------------------------------------------------------- #
+# Warrior gear
+sword        = Item("Longsword",    "main_hand", stat_mods={"weapon_damage": 12, "STR": 2})
+shield       = Item("Kite Shield",  "off_hand",  stat_mods={"armor": 15, "CON": 2})
+helm         = Item("Iron Helm",    "head",      stat_mods={"armor": 5,  "CON": 1})
+chest        = Item("Iron Chest",   "chest",     stat_mods={"armor": 12, "CON": 3})
+legs         = Item("Iron Legs",    "legs",      stat_mods={"armor": 8})
+ring_power   = Item("Ring Power",   "ring1",     stat_mods={"STR": 3})
+ring_dodge   = Item("Ring Dodge",   "ring2",     stat_mods={"AGI": 3})
+amulet_will  = Item("Amulet Will",  "amulet",    stat_mods={"WIS": 4, "resist": 5})
+
+# Wizard gear (two-hand staff)
+staff        = Item("Wizard Staff", "main_hand", two_hand=True,
+                    stat_mods={"weapon_damage": 18, "INT": 4})
+hat          = Item("Silk Hat",     "head",      stat_mods={"resist": 4,  "WIS": 2})
+robe         = Item("Silk Robe",    "chest",     stat_mods={"resist": 10, "WIS": 3})
+pants        = Item("Cloth Pants",  "legs",      stat_mods={"resist": 4,  "AGI": 1})
+ring_mana    = Item("Ring Mana",    "ring1",     stat_mods={"INT": 4})
+ring_focus   = Item("Ring Focus",   "ring2",     stat_mods={"DEX": 2})
+amulet_know  = Item("Amulet Know",  "amulet",    stat_mods={"INT": 2, "WIS": 2})
+
+# --------------------------------------------------------------------------- #
+#  Archetype instances
+# --------------------------------------------------------------------------- #
+warrior = Combatant(
+    "Warrior", "physical",
+    STR=25, CON=25, DEX=15, INT=5, WIS=10, AGI=15
+)
+for it in (
+    sword, shield, helm, chest, legs,
+    ring_power, ring_dodge, amulet_will
+):
+    warrior.equip_item(it)
+
+warrior.add_skill(PowerStrike())
+
+wizard = Combatant(
+    "Wizard", "magical",
+    STR=5, CON=15, DEX=10, INT=30, WIS=20, AGI=15
+)
+for it in (
+    staff, hat, robe, pants,
+    ring_mana, ring_focus, amulet_know
+):
+    wizard.equip_item(it)
+
+# --------------------------------------------------------------------------- #
+#  Convenience aliases expected by the Battle Runner section
+# --------------------------------------------------------------------------- #
+COMBATANT_A = warrior
+COMBATANT_B = wizard
