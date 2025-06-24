@@ -1,10 +1,13 @@
 modules = ["python-3.12"]
 
-# ONE – and only one – run line
+# ONE – and only one – run line active below, keep the unused disabled
 run = ["sh", "-c", "PYTHONPATH=src python -m arenaverse.core.battlerunner.battlerunner --mode single"]
+#run = ["sh", "-c", "PYTHONPATH=src python -m arenaverse.core.battlerunner.battlerunner --mode monte -n 1000 --seed 123"]
 
 [nix]
 channel = "stable-24_05"
 
+# ONE – and only one – run line active below, keep the unused disabled:
 [deployment]
 run = ["sh", "-c", "PYTHONPATH=src python -m arenaverse.core.battlerunner.battlerunner --mode single"]
+#run = ["sh", "-c", "PYTHONPATH=src python -m arenaverse.core.battlerunner.battlerunner --mode monte -n 1000 --seed 123"]

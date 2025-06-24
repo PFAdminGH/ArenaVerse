@@ -129,7 +129,7 @@ class BasicAttack(SkillHandle):
         if rnd.random() < formulas.chance_to_crit(
             actor.total_stats(), target.total_stats()):
             res.crit = True
-        dmg *= 1.5       # simple 150 % crit multiplier
+            dmg *= 1.5    # apply multiplier only on an actual crit
         
         # 4. Mitigation & HP loss
         res.damage = target.take_damage(int(dmg), "physical")
@@ -159,7 +159,7 @@ class PowerStrike(SkillHandle):
         if rnd.random() < formulas.chance_to_crit(
             actor.total_stats(), target.total_stats()):
             res.crit = True
-        dmg *= 1.5
+            dmg *= 1.5
         res.damage = target.take_damage(int(dmg), "physical")
 
         

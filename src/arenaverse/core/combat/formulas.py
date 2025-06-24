@@ -33,7 +33,8 @@ def sec_weapon_damage(wpn_dmg: int, STR: int = 0, INT: int = 0,
 def sigmoid_opposed(att: float, deff: float,
                     *, base=5.0, ceiling=95.0, k=0.15) -> float:
     """Bounded logistic curve used for all opposed rolls."""
-    return base + (ceiling - base) / (1 + math.exp(-k * (att - deff)))
+    pct = base + (ceiling - base) / (1 + math.exp(-k * (att - deff)))
+    return pct / 100.0          # convert 5-95 % → 0.05-0.95
 
 
 # Convenience RNG so tests can seed deterministically

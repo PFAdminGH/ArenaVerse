@@ -65,7 +65,7 @@ class BattleLog:
                     crit = " CRIT!" if action.crit else ""
                     out.append(f"{action.actor} used {action.skill_used} on {action.target} "
                                f"for {action.damage} dmg{crit}")
-        return "\\n".join(out)
+        return "\n".join(out)
 
 
 # -------------------------------------------------------------------- #
